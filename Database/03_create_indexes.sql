@@ -1,17 +1,15 @@
 ﻿/* ============================================================================
-   DashboardManagementSystemECommerceDB — PRO BUILD | FILE 3/4: SUPPORTING INDEXES
-   ----------------------------------------------------------------------------
-   Policy: PK/UNIQUE indexes are automatic; this file covers FOREIGN KEY
-   columns only (JOIN / WHERE / CASCADE / NO ACTION lookup paths).
-   Composite-index left-prefix rule: UQ_ProductTypeAttributes(ProductTypeId,
-   AttributeId) already serves ProductTypeId searches => no duplicate index.
-   Same applies to UQ_PAV_Variant_Attribute(ProductVariantId, AttributeId)
-   => IX_PAV_Variant intentionally omitted (would duplicate that constraint).
+   DashboardManagementSystemECommerceDB — PRO | FILE 3/6: SUPPORTING INDEXES
+   PK/UNIQUE indexes are automatic; this file adds FK-column indexes only.
+   Left-prefix rule avoids duplicates: UQ_ProductTypeAttributes(TypeId,AttrId)
+   already serves TypeId lookups; UQ_PAV_Variant_Attribute already serves
+   ProductVariantId lookups (IX_PAV_Variant was dropped for this reason).
    ========================================================================== */
 
 USE DashboardManagementSystemECommerceDB;
 GO
 
+-- DROP/CREATE pair keeps the file idempotent (rebuild, never duplicate).
 DROP INDEX IF EXISTS IX_Users_RoleId ON sec.Users;
 CREATE INDEX IX_Users_RoleId ON sec.Users (RoleId);
 
@@ -36,6 +34,10 @@ CREATE INDEX IX_AttributeValues_Attribute ON cat.AttributeValues (AttributeId);
 DROP INDEX IF EXISTS IX_PTA_Attribute ON cat.ProductTypeAttributes;
 CREATE INDEX IX_PTA_Attribute ON cat.ProductTypeAttributes (AttributeId);
 
--- IX_PAV_Variant removed — UNIQUE(ProductVariantId, AttributeId) already covers it (leftmost prefix rule)
 DROP INDEX IF EXISTS IX_PAV_Attribute ON cat.ProductAttributeValues;
 CREATE INDEX IX_PAV_Attribute ON cat.ProductAttributeValues (AttributeId);
+
+-- Optional reverse lookup for faceted filters (first) / attribute value.
+DROP INDEX IF EXISTS IX_PAV_AttributeValueId ON cat.ProductAttributeValues;
+CREATE INDEX IX_PAV_AttributeValueId ON cat.ProductAttributeValues (AttributeValueId);
+GO

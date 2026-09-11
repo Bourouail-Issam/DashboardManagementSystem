@@ -1,9 +1,8 @@
 ﻿/* ============================================================================
-   DashboardManagementSystemECommerceDB — PRO BUILD | FILE 2/4: TABLES (dependency order)
-   ----------------------------------------------------------------------------
-   Documentation policy: table/column purpose is stored as MS_Description
-   extended properties (visible in SSMS + retrievable by ORMs), not inline
-   comments. Inline comments mark only non-obvious engineering decisions.
+   DashboardManagementSystemECommerceDB — PRO | FILE 2/6: TABLES (dependency order)
+   Bodies are created before their parents are dropped on re-run; children
+   first, parents last, so no constraint is ever violated during the rebuild.
+   Named constraints only (so they can be managed later).
    ========================================================================== */
 
 USE DashboardManagementSystemECommerceDB;
@@ -55,16 +54,16 @@ CREATE TABLE sec.Users
     UserId          INT IDENTITY (1,1) NOT NULL,
     PersonId        INT                NOT NULL,
     RoleId          INT                NOT NULL,
-    -- Bitwise flags: powers of two summed into one BIGINT (0 = no rights).
+    -- Bitwise flags: each right is a power of two, stored as their sum.
     Permissions     BIGINT             NOT NULL CONSTRAINT DF_Users_Permissions DEFAULT (0),
     CreatedByUserId INT                NULL,
     IsActive        BIT                NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT (1),
 
     CONSTRAINT PK_Users PRIMARY KEY (UserId),
-    CONSTRAINT UQ_Users_PersonId UNIQUE (PersonId),   -- enforces 1:1 with People
+    CONSTRAINT UQ_Users_PersonId UNIQUE (PersonId),   -- 1:1 with People
     CONSTRAINT FK_Users_Person FOREIGN KEY (PersonId) REFERENCES sec.People (PersonId) ON DELETE CASCADE,
     CONSTRAINT FK_Users_Role FOREIGN KEY (RoleId) REFERENCES sec.Roles (RoleId),
-    -- NO ACTION required: multiple cascade paths forbid CASCADE/SET NULL here.
+    -- NO ACTION required: multiple cascade paths forbid CASCADE here.
     CONSTRAINT FK_Users_CreatedBy FOREIGN KEY (CreatedByUserId) REFERENCES sec.Users (UserId),
     CONSTRAINT CK_Users_Permissions CHECK (Permissions >= 0)
 );
@@ -160,7 +159,7 @@ CREATE TABLE cat.ProductVariants
     Quantity         INT                NOT NULL,
     CreatedAt        DATETIME2(0)       NOT NULL CONSTRAINT DF_Variants_CreatedAt DEFAULT SYSDATETIME(),
     UpdatedAt        DATETIME2(0)       NULL,
-    
+
     CONSTRAINT PK_ProductVariants PRIMARY KEY (ProductVariantId),
     CONSTRAINT UQ_ProductVariants_SKU UNIQUE (SKU),
     CONSTRAINT CK_ProductVariants_Price    CHECK (Price > 0),
@@ -180,7 +179,6 @@ CREATE TABLE cat.ProductAttributeValues
     FreeTextValue           NVARCHAR(255)      NULL,
 
     CONSTRAINT PK_ProductAttributeValues PRIMARY KEY (ProductAttributeValueId),
-    -- One attribute per variant: prevents duplicate Size or Color rows
     CONSTRAINT UQ_PAV_Variant_Attribute UNIQUE (ProductVariantId, AttributeId),
     CONSTRAINT FK_PAV_Variant FOREIGN KEY (ProductVariantId) REFERENCES cat.ProductVariants (ProductVariantId) ON DELETE CASCADE,
     CONSTRAINT FK_PAV_Attribute FOREIGN KEY (AttributeId) REFERENCES cat.AttributeDefinitions (AttributeId),
@@ -196,10 +194,8 @@ GO
 
 /* ---------------------------------------------------------------------------
    Metadata documentation.
-   NOTE: sp_addextendedproperty alone is NOT idempotent — calling it twice on
-   the same object fails with "Property already exists". The IF NOT EXISTS
-   guard below makes every call safe, no matter how many times the script runs
-   (the tables may also be dropped earlier, but we never rely on that).
+   sp_addextendedproperty is NOT idempotent ("Property already exists"), so
+   each call needs the IF NOT EXISTS guard to be safe on re-run.
    --------------------------------------------------------------------------- */
 IF NOT EXISTS (
     SELECT 1 FROM sys.extended_properties
